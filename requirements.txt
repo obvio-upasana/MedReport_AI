@@ -1,0 +1,14 @@
+langchain
+langchain-google-genai
+chromadb
+fastapi
+uvicorn
+pypdf
+sentence-transformers
+python-dotenv
+langchain-community
+psycopg2-binary
+supabase
+unstructured
+pytesseract
+pillow
