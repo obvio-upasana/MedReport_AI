@@ -1,43 +1,34 @@
-import os
-from dotenv import load_dotenv
-from langchain_groq import ChatGroq
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
+from fastapi import FastAPI, UploadFile, File
+from pathlib import Path
+import shutil
 
-# Load environment variables from .env file
-load_dotenv()
+from parser import extract_text_from_pdf
 
-def initialize_medical_bot():
-    api_key = os.getenv("GROQ_API_KEY")
-    if not api_key:
-        raise ValueError("GROQ_API_KEY is missing. Check your .env file.")
 
-    # Initialize the Groq Chat model via LangChain
-    llm = ChatGroq(
-        model_name="llama-3.3-70b-versatile",
-        temperature=0.2,  # Low temperature for deterministic, reliable output
-        groq_api_key=api_key
-    )
+app = FastAPI()
 
-    # System prompt to set safe guardrails for a medical assistant
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", 
-         "You are an AI Medical Assistant helper. Provide general medical information, "
-         "explain health concepts, and outline potential steps clearly. "
-         "Always include a disclaimer that you are an AI and not a licensed medical professional."),
-        ("human", "{user_query}")
-    ])
+UPLOAD_DIR = Path("../uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
 
-    # Combine into a LangChain Expression Language (LCEL) chain
-    chain = prompt | llm | StrOutputParser()
-    return chain
 
-if __name__ == "__main__":
-    bot_chain = initialize_medical_bot()
-    
-    # Test question
-    sample_query = "What are the common symptoms of mild hypertension?"
-    print(f"User Question: {sample_query}\n" + "-"*50)
-    
-    response = bot_chain.invoke({"user_query": sample_query})
-    print(response)
+@app.get("/")
+def home():
+    return {
+        "message": "MedReport AI API is running"
+    }
+
+
+@app.post("/upload")
+async def upload_report(file: UploadFile = File(...)):
+
+    file_path = UPLOAD_DIR / file.filename
+
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    extracted_text = extract_text_from_pdf(str(file_path))
+
+    return {
+        "filename": file.filename,
+        "text": extracted_text
+    }
